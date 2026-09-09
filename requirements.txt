@@ -5,3 +5,5 @@ pymongo
 requests
 joblib
 scikit-learn
+pymongo
+python-dotenv
