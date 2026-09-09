@@ -3,3 +3,5 @@ uvicorn
 pydantic
 pymongo
 requests
+joblib
+scikit-learn

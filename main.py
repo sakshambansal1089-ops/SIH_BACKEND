@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from models import ParcelInput
+import risk_model
 
 app = FastAPI(title="SIH 26017 - Land Acquisition Delay Backend")
 
@@ -18,18 +19,5 @@ def health_check():
 
 @app.post("/api/parcels/assess-risk")
 def assess_risk(data: ParcelInput):
-    # Rule-based calculation placeholder until Developer 2 provides ML model script
-    base_risk = (data.litigation_cases_count * 25) + (100 - data.compensation_disbursed_pct) * 0.4
-    if data.stay_order_active:
-        base_risk += 20
-        
-    calculated_score = min(base_risk, 100.0)
-    
-    return {
-        "parcel_id": data.parcel_id,
-        "project_id": data.project_id,
-        "district": data.district,
-        "risk_score": round(calculated_score, 2),
-        "risk_category": "High Risk" if calculated_score > 60 else "Low Risk",
-        "predicted_delay_days": int(calculated_score * 2.5)
-    }
+    # Call Dev 2's ML prediction function directly
+    return risk_model.predict_risk(data.model_dump())
