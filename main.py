@@ -54,10 +54,8 @@ def assess_risk(data: ParcelInput):
 @app.post("/api/parcels/mitigation-plan")
 def generate_mitigation_plan(data: ParcelInput):
     """Generates an AI-driven delay mitigation plan via Google Gemini"""
-    # 1. Obtain risk assessment from ML model
     risk_assessment = risk_model.predict_risk(data.model_dump())
     
-    # 2. Build contextual prompt for Gemini
     prompt = f"""
     You are an expert AI risk advisor specializing in Indian Infrastructure and Land Acquisition projects.
     Provide a clear, concise 3-step actionable mitigation plan for this parcel delay risk:
@@ -73,8 +71,9 @@ def generate_mitigation_plan(data: ParcelInput):
     """
     
     try:
+        # UPDATED: Use active gemini-3.6-flash model
         response = ai_client.models.generate_content(
-            model='gemini-2.5-flash',
+            model='gemini-3.6-flash',
             contents=prompt,
         )
         
@@ -84,7 +83,6 @@ def generate_mitigation_plan(data: ParcelInput):
             "mitigation_plan": response.text
         }
         
-        # Persist mitigation plan to database
         try:
             db.save_prediction_result(result)
         except Exception as db_err:
