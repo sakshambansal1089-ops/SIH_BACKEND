@@ -53,7 +53,7 @@ def assess_risk(data: ParcelInput):
 
 @app.post("/api/parcels/mitigation-plan")
 def generate_mitigation_plan(data: ParcelInput):
-    """Generates an AI-driven delay mitigation plan via Google Gemini 3.6 Flash"""
+    """Generates an AI-driven delay mitigation plan via Google Gemini"""
     # 1. Obtain risk assessment from ML model
     risk_assessment = risk_model.predict_risk(data.model_dump())
 
@@ -79,10 +79,10 @@ Primary Risk Factors: {', '.join(risk_assessment.get('primary_risk_factors', [])
 Focus on actionable steps to resolve legal stays, streamline disbursement/compensation, or address compensation issues.
 """
 
-    # 3. Execute model call and handle DB persistence safely
+    # 3. Call Gemini model & persist to DB
     try:
         response = ai_client.models.generate_content(
-            model='gemini-3.6-flash',
+            model='gemini-2.5-flash',
             contents=prompt,
         )
 
@@ -92,7 +92,7 @@ Focus on actionable steps to resolve legal stays, streamline disbursement/compen
             "mitigation_plan": response.text
         }
 
-        # Persist result to MongoDB
+        # Persist mitigation plan to database
         try:
             db.save_prediction_result(result)
         except Exception as db_err:
