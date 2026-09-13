@@ -56,40 +56,48 @@ def generate_mitigation_plan(data: ParcelInput):
     """Generates an AI-driven delay mitigation plan via Google Gemini"""
     # 1. Obtain risk assessment from ML model
     risk_assessment = risk_model.predict_risk(data.model_dump())
-    
-    # 2. Build contextual prompt for Gemini
+
+    # 2. Build contextual prompt for Gemini with strict tone & language instructions
     prompt = f"""
-    You are an expert AI risk advisor specializing in Indian Infrastructure and Land Acquisition projects.
-    Provide a clear, concise 3-step actionable mitigation plan for this parcel delay risk:
-    
-    Parcel ID: {data.parcel_id}
-    Project ID: {data.project_id}
-    Risk Level: {risk_assessment.get('risk_level', 'Unknown')}
-    Risk Score: {risk_assessment.get('risk_score', 0)}
-    Predicted Delay: {risk_assessment.get('predicted_delay_days', 0)} days
-    Primary Risk Factors: {', '.join(risk_assessment.get('primary_risk_factors', []))}
-    
-    Focus on steps to resolve legal stays, streamline disbursement/compensation, or address compensation issues.
-    """
-    
+You are an expert AI risk advisor specializing in Indian Infrastructure and Land Acquisition projects.
+Provide a highly formal, executive-level, 3-step actionable mitigation plan in clear, standard English for this parcel delay risk.
+
+CRITICAL LANGUAGE & TONE RULES:
+1. Translate any informal, colloquial, or Hinglish risk factors into standard professional English.
+2. Maintain a professional, executive, and authoritative tone suitable for high-level government or legal reports.
+3. Do NOT use any Hinglish, informal phrases, or casual slang in your output under any circumstances.
+
+Parcel Details:
+Parcel ID: {data.parcel_id}
+Project ID: {data.project_id}
+Risk Level: {risk_assessment.get('risk_level', 'Unknown')}
+Risk Score: {risk_assessment.get('risk_score', 0)}
+Predicted Delay: {risk_assessment.get('predicted_delay_days', 0)} days
+Primary Risk Factors: {', '.join(risk_assessment.get('primary_risk_factors', []))}
+
+Focus on actionable steps to resolve legal stays, streamline disbursement/compensation, or address compensation issues.
+"""
+
+    # 3. Call Gemini model & persist to DB
     try:
         response = ai_client.models.generate_content(
             model='gemini-3.6-flash',
             contents=prompt,
         )
-        
+
         result = {
             "parcel_id": data.parcel_id,
             "risk_summary": risk_assessment,
             "mitigation_plan": response.text
         }
-        
+
         # Persist mitigation plan to database
         try:
             db.save_prediction_result(result)
         except Exception as db_err:
             print(f"DB save warning: {db_err}")
-            
+
         return result
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Gemini AI Generation Error: {str(e)}")
