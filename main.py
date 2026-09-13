@@ -9,7 +9,7 @@ app = FastAPI(title="Land Acquisition & Mitigation API")
 ai_client = genai.Client()
 
 # ------------------------------------------------------------------------------
-# Request & Response Schemas
+# Request Schemas
 # ------------------------------------------------------------------------------
 class ParcelInput(BaseModel):
     project_id: str
@@ -40,6 +40,20 @@ def predict_parcel_risk(data: ParcelInput):
         raise HTTPException(status_code=500, detail=f"Risk Prediction Failed: {str(e)}")
 
 
+@app.get("/api/parcels/{parcel_id}")
+def get_parcel_history(parcel_id: str):
+    """
+    Retrieves stored predictions and mitigation history for a given parcel ID
+    """
+    try:
+        record = db.get_prediction_by_parcel(parcel_id)
+        if not record:
+            raise HTTPException(status_code=404, detail=f"Parcel ID {parcel_id} not found.")
+        return record
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database Retrieval Error: {str(e)}")
+
+
 @app.post("/api/parcels/mitigation-plan")
 def generate_mitigation_plan(data: ParcelInput):
     """
@@ -56,7 +70,7 @@ def generate_mitigation_plan(data: ParcelInput):
             "primary_risk_factors": ["Pending Litigation", "Active Stay Order"] if data.stay_order_active else ["Compensation Pending"]
         }
 
-    # 2. Build prompt with strict 150-word & tone constraints
+    # 2. Build prompt with strict 150-word & formal tone constraints
     prompt = f"""
 You are an expert AI risk advisor for Indian Infrastructure and Land Acquisition projects.
 Provide a highly formal, executive-level, 3-step actionable mitigation plan in clear, standard English for this parcel delay risk.
