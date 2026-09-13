@@ -54,10 +54,14 @@ def assess_risk(data: ParcelInput):
 @app.post("/api/parcels/mitigation-plan")
 def generate_mitigation_plan(data: ParcelInput):
     """Generates an AI-driven delay mitigation plan via Google Gemini 3.6 Flash"""
-    # 1. Obtain risk assessment from ML model
-    risk_assessment = risk_model.predict_risk(data.model_dump())
+    
+    # 1. Safely run ML Risk Prediction
+    try:
+        risk_assessment = risk_model.predict_risk(data.model_dump())
+    except Exception as ml_err:
+        raise HTTPException(status_code=500, detail=f"Risk Model Error: {str(ml_err)}")
 
-    # 2. Build contextual prompt enforcing executive-level formal English
+    # 2. Build prompt enforcing formal English output
     prompt = f"""
 You are an expert AI risk advisor specializing in Indian Infrastructure and Land Acquisition projects.
 Provide a highly formal, executive-level, 3-step actionable mitigation plan in clear, standard English for this parcel delay risk.
@@ -79,26 +83,26 @@ Primary Risk Factors: {', '.join(risk_assessment.get('primary_risk_factors', [])
 Focus on actionable steps to resolve legal stays, streamline disbursement/compensation, or address compensation issues.
 """
 
-    # 3. Call Gemini model & persist to DB
+    # 3. Call Gemini API safely
     try:
         response = ai_client.models.generate_content(
             model='gemini-3.6-flash',
             contents=prompt,
         )
+    except Exception as ai_err:
+        raise HTTPException(status_code=500, detail=f"Gemini AI Error: {str(ai_err)}")
 
-        result = {
-            "parcel_id": data.parcel_id,
-            "risk_summary": risk_assessment,
-            "mitigation_plan": response.text
-        }
+    result = {
+        "parcel_id": data.parcel_id,
+        "risk_summary": risk_assessment,
+        "mitigation_plan": response.text
+    }
 
-        # Persist mitigation plan to database
-        try:
-            db.save_prediction_result(result)
-        except Exception as db_err:
-            print(f"DB save warning: {db_err}")
+    # 4. Save to MongoDB safely
+    try:
+        db.save_prediction_result(result)
+    except Exception as db_err:
+        print(f"DB save warning: {db_err}")
 
-        return result
-
-    except Exception as e:
+    return result
         raise HTTPException(status_code=500, detail=f"Gemini AI Generation Error: {str(e)}")
