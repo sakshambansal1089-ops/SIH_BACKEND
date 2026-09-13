@@ -43,14 +43,16 @@ def generate_mitigation_plan(data: ParcelInput):
         print(f"ML Model Warning (using fallback): {ml_err}")
 
     # 2. Build contextual prompt enforcing executive formal English
+  # 2. Build contextual prompt enforcing executive formal English and word limit
     prompt = f"""
 You are an expert AI risk advisor specializing in Indian Infrastructure and Land Acquisition projects.
 Provide a highly formal, executive-level, 3-step actionable mitigation plan in clear, standard English for this parcel delay risk.
 
-CRITICAL LANGUAGE & TONE RULES:
-1. Translate any informal, colloquial, or Hinglish risk factors into standard professional English.
-2. Maintain a professional, executive, and authoritative tone suitable for high-level government or legal reports.
-3. Do NOT use any Hinglish, informal phrases, or casual slang in your output under any circumstances.
+CRITICAL CONSTRAINTS & TONE RULES:
+1. WORD LIMIT: Keep the ENTIRE mitigation plan concise and strictly under 150 words.
+2. Translate any informal, colloquial, or Hinglish risk factors into standard professional English.
+3. Maintain a professional, executive, and authoritative tone suitable for high-level government or legal reports.
+4. Do NOT use any Hinglish, informal phrases, or casual slang in your output under any circumstances.
 
 Parcel Details:
 Parcel ID: {data.parcel_id}
@@ -61,9 +63,8 @@ Risk Score: {risk_assessment.get('risk_score', 0)}
 Predicted Delay: {risk_assessment.get('predicted_delay_days', 0)} days
 Primary Risk Factors: {', '.join(risk_assessment.get('primary_risk_factors', []))}
 
-Focus on actionable steps to resolve legal stays, streamline disbursement/compensation, or address compensation issues.
+Focus on brief, high-impact actionable steps to resolve legal stays and streamline compensation.
 """
-
     # 3. Call Gemini 3.6 Flash safely
     try:
         response = ai_client.models.generate_content(
