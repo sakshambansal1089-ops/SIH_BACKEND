@@ -5,10 +5,12 @@ from google import genai
 
 app = FastAPI(title="Land Acquisition & Mitigation API")
 
-# Initialize Google GenAI Client (requires GEMINI_API_KEY environment variable on Render)
+# Initialize Google GenAI Client
 ai_client = genai.Client()
 
-# Request Body Schema
+# ------------------------------------------------------------------------------
+# Request & Response Schemas
+# ------------------------------------------------------------------------------
 class ParcelInput(BaseModel):
     project_id: str
     parcel_id: str
@@ -18,34 +20,45 @@ class ParcelInput(BaseModel):
     compensation_disbursed_pct: float
 
 
+# ------------------------------------------------------------------------------
+# Endpoints
+# ------------------------------------------------------------------------------
 @app.get("/")
 def read_root():
     return {"status": "online", "message": "SIH Backend API is running."}
 
 
+@app.post("/api/parcels/predict-risk")
+def predict_parcel_risk(data: ParcelInput):
+    """
+    Predicts land acquisition delay risk scores using the ML model
+    """
+    try:
+        risk_assessment = risk_model.predict_risk(data.model_dump())
+        return risk_assessment
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Risk Prediction Failed: {str(e)}")
+
+
 @app.post("/api/parcels/mitigation-plan")
 def generate_mitigation_plan(data: ParcelInput):
     """
-    Generates an AI-driven delay mitigation plan via Google Gemini 3.6 Flash
+    Generates a concise, formal AI mitigation plan (<150 words) via Gemini 3.6 Flash
     """
     # 1. Safely execute ML Risk Prediction
     try:
-        # If risk_model is imported from your internal module
         risk_assessment = risk_model.predict_risk(data.model_dump())
     except Exception as ml_err:
-        # Fallback dictionary if risk_model fails or is not initialized
         risk_assessment = {
             "risk_level": "High" if data.stay_order_active else "Medium",
             "risk_score": 75 if data.stay_order_active else 45,
             "predicted_delay_days": 180 if data.stay_order_active else 60,
             "primary_risk_factors": ["Pending Litigation", "Active Stay Order"] if data.stay_order_active else ["Compensation Pending"]
         }
-        print(f"ML Model Warning (using fallback): {ml_err}")
 
-    # 2. Build contextual prompt enforcing executive formal English
-  # 2. Build contextual prompt enforcing executive formal English and word limit
+    # 2. Build prompt with strict 150-word & tone constraints
     prompt = f"""
-You are an expert AI risk advisor specializing in Indian Infrastructure and Land Acquisition projects.
+You are an expert AI risk advisor for Indian Infrastructure and Land Acquisition projects.
 Provide a highly formal, executive-level, 3-step actionable mitigation plan in clear, standard English for this parcel delay risk.
 
 CRITICAL CONSTRAINTS & TONE RULES:
@@ -65,7 +78,8 @@ Primary Risk Factors: {', '.join(risk_assessment.get('primary_risk_factors', [])
 
 Focus on brief, high-impact actionable steps to resolve legal stays and streamline compensation.
 """
-    # 3. Call Gemini 3.6 Flash safely
+
+    # 3. Call Gemini 3.6 Flash
     try:
         response = ai_client.models.generate_content(
             model='gemini-3.6-flash',
@@ -84,7 +98,7 @@ Focus on brief, high-impact actionable steps to resolve legal stays and streamli
         "mitigation_plan": mitigation_text
     }
 
-    # 4. Safely persist to database
+    # 4. Save to database
     try:
         db.save_prediction_result(result)
     except Exception as db_err:
