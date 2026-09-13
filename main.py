@@ -2,6 +2,7 @@ import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from google import genai
+from google.genai import types  # Added import for configuration settings
 from models import ParcelInput
 import risk_model
 import db
@@ -45,7 +46,7 @@ def assess_risk(data: ParcelInput):
     assessment = risk_model.predict_risk(data.model_dump())
     
     try:
-        db.save_prediction_result(assessment)
+        db.save_prediction_result(dict(assessment))
     except Exception as e:
         print(f"Database save non-critical warning: {e}")
         
@@ -59,23 +60,33 @@ def generate_mitigation_plan(data: ParcelInput):
     
     # 2. Build contextual prompt for Gemini
     prompt = f"""
-    You are an expert AI risk advisor specializing in Indian Infrastructure and Land Acquisition projects.
-    Provide a clear, concise 3-step actionable mitigation plan for this parcel delay risk:
-    
+    Provide a concise, professional 3-step mitigation plan for this parcel delay:
+
     Parcel ID: {data.parcel_id}
     Project ID: {data.project_id}
     Risk Level: {risk_assessment.get('risk_level', 'Unknown')}
     Risk Score: {risk_assessment.get('risk_score', 0)}
     Predicted Delay: {risk_assessment.get('predicted_delay_days', 0)} days
     Primary Risk Factors: {', '.join(risk_assessment.get('primary_risk_factors', []))}
-    
-    Focus on steps to resolve legal stays, streamline disbursement/compensation, or address compensation issues.
     """
     
     try:
+        # Configured to enforce professional English, strict brevity, and low randomness
+        config = types.GenerateContentConfig(
+            system_instruction=(
+                "You are an expert infrastructure and land acquisition risk advisor for official reports. "
+                "Respond strictly in standard professional business English. "
+                "Do NOT use Hinglish, informal slang, or unnecessary padding. "
+                "Provide exactly 3 concise, highly structured, bulleted steps to resolve legal stays, "
+                "streamline compensation, or expedite title verification."
+            ),
+            temperature=0.2,  # Low temperature keeps responses focused and deterministic
+        )
+
         response = ai_client.models.generate_content(
             model='gemini-3.6-flash',
             contents=prompt,
+            config=config,
         )
         
         result = {
@@ -84,9 +95,9 @@ def generate_mitigation_plan(data: ParcelInput):
             "mitigation_plan": response.text
         }
         
-        # Persist mitigation plan to database
+        # Persist mitigation plan to database safely using dict copy
         try:
-            db.save_prediction_result(result)
+            db.save_prediction_result(dict(result))
         except Exception as db_err:
             print(f"DB save warning: {db_err}")
             
