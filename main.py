@@ -53,11 +53,11 @@ def assess_risk(data: ParcelInput):
 
 @app.post("/api/parcels/mitigation-plan")
 def generate_mitigation_plan(data: ParcelInput):
-    """Generates an AI-driven delay mitigation plan via Google Gemini"""
+    """Generates an AI-driven delay mitigation plan via Google Gemini 3.6 Flash"""
     # 1. Obtain risk assessment from ML model
     risk_assessment = risk_model.predict_risk(data.model_dump())
 
-    # 2. Build contextual prompt for Gemini with strict tone & language instructions
+    # 2. Build contextual prompt enforcing executive-level formal English
     prompt = f"""
 You are an expert AI risk advisor specializing in Indian Infrastructure and Land Acquisition projects.
 Provide a highly formal, executive-level, 3-step actionable mitigation plan in clear, standard English for this parcel delay risk.
@@ -70,6 +70,7 @@ CRITICAL LANGUAGE & TONE RULES:
 Parcel Details:
 Parcel ID: {data.parcel_id}
 Project ID: {data.project_id}
+District: {data.district}
 Risk Level: {risk_assessment.get('risk_level', 'Unknown')}
 Risk Score: {risk_assessment.get('risk_score', 0)}
 Predicted Delay: {risk_assessment.get('predicted_delay_days', 0)} days
@@ -78,7 +79,7 @@ Primary Risk Factors: {', '.join(risk_assessment.get('primary_risk_factors', [])
 Focus on actionable steps to resolve legal stays, streamline disbursement/compensation, or address compensation issues.
 """
 
-    # 3. Call Gemini model & persist to DB
+    # 3. Execute model call and handle DB persistence safely
     try:
         response = ai_client.models.generate_content(
             model='gemini-3.6-flash',
@@ -91,7 +92,7 @@ Focus on actionable steps to resolve legal stays, streamline disbursement/compen
             "mitigation_plan": response.text
         }
 
-        # Persist mitigation plan to database
+        # Persist result to MongoDB
         try:
             db.save_prediction_result(result)
         except Exception as db_err:
