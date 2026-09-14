@@ -79,6 +79,7 @@ def generate_mitigation_plan(data: ParcelInput):
                 "Do NOT use Hinglish, informal slang, or unnecessary padding. "
                 "Provide exactly 3 concise, highly structured, bulleted steps to resolve legal stays, "
                 "streamline compensation, or expedite title verification."
+                "give proper formal response and NOT like 0.0% paisa diya h "
             ),
             temperature=0.2,  # Low temperature keeps responses focused and deterministic
         )
