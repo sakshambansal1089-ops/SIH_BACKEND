@@ -41,11 +41,11 @@ def predict_risk(parcel_data: dict):
 
     factors = []
     if parcel_data.get('litigation_cases_count', 0) > 0:
-        factors.append(f"{parcel_data['litigation_cases_count']} case chal rahe hai")
+        factors.append(f"{parcel_data['litigation_cases_count']} active litigation case(s)")
     if parcel_data.get('stay_order_active'):
-        factors.append("Court ka Stay Order laga hai")
+        factors.append("Active court stay order in place")
     if parcel_data.get('compensation_disbursed_pct', 100) < 80:
-        factors.append(f"Sirf {parcel_data.get('compensation_disbursed_pct')}% paisa diya hai")
+        factors.append(f"Low compensation disbursement: only {parcel_data.get('compensation_disbursed_pct')}% paid")
     if not factors:
         factors.append("Sab clear hai - koi risk nahi")
 
